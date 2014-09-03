@@ -1,0 +1,22 @@
+var messageCollection = Backbone.Collection.extend({
+        localStorage: new Backbone.LocalStorage("calendar-backbone"),
+
+        done: function() {
+            return this.filter(function(todo){ return todo.get('done'); });
+        },
+
+        remaining: function() {
+            return this.without.apply(this, this.done());
+        },
+
+        nextMessage: function() {
+            if (!this.length) return 1;
+            return this.last().get('message') + 1;
+        },
+
+        comparator: function(todo) {
+            return todo.get('message') || this.nextMessage();
+        }
+
+});
+var messages = new messageCollection([],{})
