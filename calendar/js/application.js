@@ -48,6 +48,13 @@ var loadMonthCalendar = function(year, month) {
 			routes.navigate("weekview/"+$(this).children("span").attr("data-datevalue"), { trigger: true });		
 		});
 	}
+		//count all messages for month
+		$(".date").each(function(elem){
+			var date = $(this).attr("data-datevalue");
+			if(date==undefined) return;
+			mesgs = messages.where({date: date});
+			$(this).parent().append(' <span class="badge '+((mesgs.length>0)?"alert-success":"alert-info")+'">'+ mesgs.length +'</span>');	
+		});
 }
 
 //Main mathod for displaying the week calendar
@@ -67,7 +74,7 @@ var loadWeekCalendar = function(date) {
 	for(var day=0; day<7;day++)
 	{
 		
-		rowHtml += '<div class="list-group">  <span class="list-group-item">  <h4 data-datevalue="'+mom.format("YYYY-MM-DD")+'" class="list-group-item-heading">'+dayName[day]+", "+mom.date()+" "+monthNames[mom.month()]+' <span class="addNote glyphicon glyphicon-plus"></span></h4>    <p class="list-group-item-text">'+
+		rowHtml += '<div class="list-group">  <span class="list-group-item">  <h4 data-datevalue="'+mom.format("YYYY-MM-DD")+'" class="list-group-item-heading">'+dayName[day]+", "+mom.date()+" "+monthNames[mom.month()]+' <span title="Add new note" class="addNote glyphicon glyphicon-plus"></span></h4>    <p class="list-group-item-text">'+
 			
 			'</p>  </span></div>';
 		mom.add("days",1);	
@@ -75,11 +82,65 @@ var loadWeekCalendar = function(date) {
 	$(".body").append(rowHtml);
 	
 	$(".addNote").click(function(){	
-		$(this).parent().parent().children("p").append('<input class="note-input" type="text" />');	
+		if($(this).parent().parent().children("p").children("input").size()==0)	
+			$(this).parent().parent().children("p").append('<input class="note-input" placeholder="Type your message here and hit enter to save..." type="text" />');
+		$(".note-input").change(function(){
+			if(typeof($(this).attr("data-id"))!="undefined"){
+			
+			} else {
+				
+				if($(this).val()!="") {
+					var message =  new Message({
+						date: $(this).parent().parent().children("h4").attr("data-datevalue"),
+						text: $(this).val(),
+						gid: messages.getId()
+				
+					});
+					messages.add(message);
+					messages.saveAll();
+					$(this).remove();
+					//stopping and starting the router again to refresh the view
+					Backbone.history.stop(); 
+					Backbone.history.start();
+				}
+			}		
+		});	
 	});
 		
 	$(".well").click(function(){
 		$(".selected").removeClass("selected");
 		$(this).addClass("selected");
 	});
-}
+	//load all messages for week
+	$(".list-group-item").each(function(elem){
+		var date = $(this).children("h4").attr("data-datevalue");
+		mesgs = messages.where({date: date});
+		for(var i=0;i<mesgs.length;i++) {
+			$(this).children("p").append("<p class='text-message' data-id='"+mesgs[i].get("gid")+"'>"+mesgs[i].get("text")
+			+ ' <span class="glyphicon glyphicon-pencil editMessage" title="Edit"></span>  <span title="Delete" class="deleteMessage glyphicon glyphicon-remove"> </span>'			
+			+"</p>");	
+		};	
+	});
+	$(".deleteMessage").click(function(){
+		var gid = parseInt($(this).parent().attr("data-id"));
+		var m = messages.where({ "gid": gid});
+		for(var i=0;i<m.length;i++)
+			messages.remove(m[i]);
+		messages.saveAll();
+		//stopping and starting the router again to refresh the view
+		Backbone.history.stop(); 
+		Backbone.history.start();
+	});
+	$(".editMessage").click(function(){
+		var gid = parseInt($(this).parent().attr("data-id"));
+		var m = messages.where({ "gid": gid});
+		var value = m[0].get("text");	
+		$(this).parent().parent().parent().children("h4").children(".addNote").click();
+		$(this).parent().parent().children("input").val(value);
+		$("p[data-id="+gid+"]").remove();
+		for(var i=0;i<m.length;i++) { messages.remove(m[i]); }
+		messages.saveAll();
+		//$(".deleteMessage").click();
+	});
+};
+
